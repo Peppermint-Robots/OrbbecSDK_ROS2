@@ -944,7 +944,7 @@ void OBCameraNode::getParameters() {
   setAndGetNodeParameter(enable_point_cloud_, "enable_point_cloud", false);
   setAndGetNodeParameter<std::string>(point_cloud_qos_, "point_cloud_qos", "default");
   setAndGetNodeParameter(enable_d2c_viewer_, "enable_d2c_viewer", false);
-  setAndGetNodeParameter(enable_hardware_d2d_, "enable_hardware_d2d", true);
+  setAndGetNodeParameter(enable_hardware_d2d_, "enable_hardware_d2d", false);
   setAndGetNodeParameter(enable_soft_filter_, "enable_soft_filter", false);
   setAndGetNodeParameter<std::string>(depth_filter_config_, "depth_filter_config", "");
   if (!depth_filter_config_.empty()) {
