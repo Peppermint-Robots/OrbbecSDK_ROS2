@@ -1178,6 +1178,12 @@ void OBCameraNode::getParameters()
   setAndGetNodeParameter(enable_colored_point_cloud_, "enable_colored_point_cloud", false);
   setAndGetNodeParameter(enable_point_cloud_, "enable_point_cloud", false);
   setAndGetNodeParameter<std::string>(point_cloud_qos_, "point_cloud_qos", "default");
+  setAndGetNodeParameter<std::vector<std::string>>(
+    depth_cloud_enable_pub_plugins_, "depth.points.enable_pub_plugins",
+    {"point_cloud_transport/raw", "point_cloud_transport/cloudini"});
+  setAndGetNodeParameter<std::vector<std::string>>(
+    depth_registered_cloud_enable_pub_plugins_, "depth_registered.points.enable_pub_plugins",
+    {"point_cloud_transport/raw", "point_cloud_transport/cloudini"});
   setAndGetNodeParameter(enable_d2c_viewer_, "enable_d2c_viewer", false);
   setAndGetNodeParameter(enable_hardware_d2d_, "enable_hardware_d2d", true);
   setAndGetNodeParameter(enable_soft_filter_, "enable_soft_filter", false);
@@ -1424,23 +1430,21 @@ void OBCameraNode::setupCameraInfo()
 
 void OBCameraNode::setupPublishers()
 {
-  using PointCloud2 = sensor_msgs::msg::PointCloud2;
   using CameraInfo = sensor_msgs::msg::CameraInfo;
   auto point_cloud_qos_profile = getRMWQosProfileFromString(point_cloud_qos_);
   if (use_intra_process_) {
     point_cloud_qos_profile = rmw_qos_profile_default;
   }
   if (enable_colored_point_cloud_) {
-    depth_registration_cloud_pub_ = node_->create_publisher<PointCloud2>(
-      "depth_registered/points",
-      rclcpp::QoS(
-        rclcpp::QoSInitialization::from_rmw(point_cloud_qos_profile), point_cloud_qos_profile));
+    const auto pct =
+      std::make_shared<point_cloud_transport::PointCloudTransport>(node_->shared_from_this());
+    depth_registration_cloud_pub_ =
+      pct->advertise("depth_registered/points", point_cloud_qos_profile);
   }
   if (enable_point_cloud_) {
-    depth_cloud_pub_ = node_->create_publisher<PointCloud2>(
-      "depth/points",
-      rclcpp::QoS(
-        rclcpp::QoSInitialization::from_rmw(point_cloud_qos_profile), point_cloud_qos_profile));
+    const auto pct =
+      std::make_shared<point_cloud_transport::PointCloudTransport>(node_->shared_from_this());
+    depth_cloud_pub_ = pct->advertise("depth/points", point_cloud_qos_profile);
   }
   auto device_info = device_->getDeviceInfo();
   CHECK_NOTNULL(device_info.get());
@@ -1591,7 +1595,7 @@ void OBCameraNode::publishDepthPointCloud(const std::shared_ptr<ob::FrameSet> & 
 {
   (void)frame_set;
   if (
-    !depth_cloud_pub_ || depth_cloud_pub_->get_subscription_count() == 0 || !enable_point_cloud_ ||
+    !depth_cloud_pub_ || depth_cloud_pub_.getNumSubscribers() == 0 || !enable_point_cloud_ ||
     !depth_frame_) {
     return;
   }
@@ -1687,15 +1691,14 @@ void OBCameraNode::publishDepthPointCloud(const std::shared_ptr<ob::FrameSet> & 
       RCLCPP_ERROR_STREAM(logger_, "Failed to save point cloud: " << e.what());
     }
   }
-  depth_cloud_pub_->publish(std::move(point_cloud_msg));
+  depth_cloud_pub_.publish(std::move(point_cloud_msg));
 }
 
 void OBCameraNode::publishColoredPointCloud(const std::shared_ptr<ob::FrameSet> & frame_set)
 {
   if (
-    !depth_registration_cloud_pub_ ||
-    depth_registration_cloud_pub_->get_subscription_count() == 0 || !enable_colored_point_cloud_ ||
-    !depth_frame_) {
+    !depth_registration_cloud_pub_ || depth_registration_cloud_pub_.getNumSubscribers() == 0 ||
+    !enable_colored_point_cloud_ || !depth_frame_) {
     return;
   }
 
@@ -1827,7 +1830,7 @@ void OBCameraNode::publishColoredPointCloud(const std::shared_ptr<ob::FrameSet> 
       RCLCPP_ERROR(logger_, "Failed to save point cloud");
     }
   }
-  depth_registration_cloud_pub_->publish(std::move(point_cloud_msg));
+  depth_registration_cloud_pub_.publish(std::move(point_cloud_msg));
 }
 
 std::shared_ptr<ob::Frame> OBCameraNode::processDepthFrameFilter(std::shared_ptr<ob::Frame> & frame)
@@ -2004,7 +2007,7 @@ bool OBCameraNode::decodeColorFrameToBuffer(
   }
   CHECK_NOTNULL(image_publishers_[COLOR]);
   bool has_subscriber = image_publishers_[COLOR]->get_subscription_count() > 0;
-  if (enable_colored_point_cloud_ && depth_registration_cloud_pub_->get_subscription_count() > 0) {
+  if (enable_colored_point_cloud_ && depth_registration_cloud_pub_.getNumSubscribers() > 0) {
     has_subscriber = true;
   }
   if (!has_subscriber) {

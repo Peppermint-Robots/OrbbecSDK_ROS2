@@ -43,6 +43,7 @@ set(dependencies
   diagnostic_msgs
   statistics_msgs
   backward_ros
+  point_cloud_transport
 )
 
 foreach (dep IN LISTS dependencies)
