@@ -1658,7 +1658,6 @@ void OBCameraNode::publishDepthPointCloud(const std::shared_ptr<ob::FrameSet> & 
   }
   if (valid_count == 0) {
     RCLCPP_WARN(logger_, "No valid point in point cloud");
-    return;
   }
   if (!ordered_pc_) {
     point_cloud_msg->is_dense = true;
@@ -1795,7 +1794,6 @@ void OBCameraNode::publishColoredPointCloud(const std::shared_ptr<ob::FrameSet> 
   }
   if (valid_count == 0) {
     RCLCPP_WARN(logger_, "No valid points in point cloud");
-    return;
   }
   if (!ordered_pc_) {
     point_cloud_msg->is_dense = true;
