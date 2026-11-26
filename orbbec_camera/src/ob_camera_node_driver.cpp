@@ -91,6 +91,7 @@ OBCameraNodeDriver::OBCameraNodeDriver(const std::string &node_name, const std::
 }
 
 OBCameraNodeDriver::~OBCameraNodeDriver() {
+  get_node_base_interface()->get_context()->remove_pre_shutdown_callback(pre_shutdown_cb_handle_);
   is_alive_.store(false);
   if (device_count_update_thread_ && device_count_update_thread_->joinable()) {
     device_count_update_thread_->join();
@@ -104,11 +105,27 @@ OBCameraNodeDriver::~OBCameraNodeDriver() {
   }
 }
 
+void OBCameraNodeDriver::onPreShutdown() {
+  RCLCPP_WARN_STREAM(logger_, "Pre-shutdown: stopping camera streams");
+  is_alive_.store(false);
+  {
+    std::lock_guard<std::mutex> lk(reset_device_mutex_);
+    reset_device_cond_.notify_all();
+  }
+  std::lock_guard<std::recursive_mutex> lock(device_lock_);
+  if (ob_camera_node_) {
+    ob_camera_node_->clean();
+  }
+}
+
 void OBCameraNodeDriver::init() {
   signal(SIGSEGV, signalHandler);  // segment fault
   signal(SIGABRT, signalHandler);  // abort
   signal(SIGFPE, signalHandler);   // float point exception
   signal(SIGILL, signalHandler);   // illegal instruction
+  // Stop the SDK pipeline as soon as rclcpp begins shutting down
+  pre_shutdown_cb_handle_ = get_node_base_interface()->get_context()->add_pre_shutdown_callback(
+      [this]() { onPreShutdown(); });
   auto log_level_str = declare_parameter<std::string>("log_level", "none");
   auto log_level = obLogSeverityFromString(log_level_str);
   connection_delay_ = static_cast<int>(declare_parameter<int>("connection_delay", 100));

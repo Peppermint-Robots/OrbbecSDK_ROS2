@@ -1047,6 +1047,7 @@ void OBCameraNode::stopStreams()
   }
   try {
     pipeline_->stop();
+    pipeline_started_.store(false);
   } catch (const ob::Error & e) {
     RCLCPP_ERROR_STREAM(logger_, "Failed to stop pipeline: " << e.getMessage());
   } catch (...) {
@@ -1063,6 +1064,7 @@ void OBCameraNode::stopIMU()
     }
     try {
       imuPipeline_->stop();
+      imu_sync_output_start_ = false;
     } catch (const ob::Error & e) {
       RCLCPP_ERROR_STREAM(logger_, "Failed to stop imu pipeline: " << e.getMessage());
     } catch (...) {

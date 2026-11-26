@@ -41,6 +41,8 @@ class OBCameraNodeDriver : public rclcpp::Node {
  private:
   void init();
 
+  void onPreShutdown();
+
   std::shared_ptr<ob::Device> selectDevice(const std::shared_ptr<ob::DeviceList>& list);
 
   std::shared_ptr<ob::Device> selectDeviceBySerialNumber(
@@ -79,6 +81,7 @@ class OBCameraNodeDriver : public rclcpp::Node {
   std::shared_ptr<ob::Device> device_ = nullptr;
   std::shared_ptr<ob::DeviceInfo> device_info_ = nullptr;
   std::atomic_bool is_alive_{false};
+  rclcpp::PreShutdownCallbackHandle pre_shutdown_cb_handle_;
   std::atomic_bool device_connected_{false};
   std::string serial_number_;
   std::string device_unique_id_;
